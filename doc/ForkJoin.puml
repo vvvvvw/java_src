@@ -1,0 +1,25 @@
+@startuml
+
+interface Future<V> {
+
+    boolean cancel(boolean mayInterruptIfRunning);
+
+    boolean isCancelled();
+
+    boolean isDone();
+
+    V get() throws InterruptedException, ExecutionException;
+
+    V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException;
+}
+
+abstract class ForkJoinTask implements Future, Serializable {
+}
+
+abstract class RecursiveAction extends ForkJoinTask{
+}
+note left of RecursiveAction:用于任务没有返回值的场景
+abstract class RecursiveTask extends ForkJoinTask{
+}
+note right of RecursiveTask:用于任务有返回值的场景
+@enduml

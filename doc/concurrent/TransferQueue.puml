@@ -1,0 +1,23 @@
+@startuml
+
+interface TransferQueue extends BlockingQueue {
+
+    boolean tryTransfer(E e);
+
+    void transfer(E e) throws InterruptedException;
+
+    boolean tryTransfer(E e, long timeout, TimeUnit unit)
+        throws InterruptedException;
+
+    boolean hasWaitingConsumer();
+
+    int getWaitingConsumerCount();
+}
+
+class LinkedTransferQueue extends AbstractQueue implements TransferQueue, Serializable {
+    }
+
+
+
+
+@enduml

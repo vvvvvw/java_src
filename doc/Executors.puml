@@ -1,0 +1,142 @@
+@startuml
+
+interface Executor {
+
+    void execute(Runnable command);
+}
+
+interface ExecutorService extends Executor {
+
+    void shutdown();关闭ExecutorService\n调用该方法后，将导致 ExecutorService 停止接受任何新的任务且等待已经提交的任务执行完成(已经提交的任务会分两类：一类是已经在执行的，另一类是还没有开始执行的)，当所有已经提交的任务执行完毕后将会关闭 ExecutorService。
+
+    List<Runnable> shutdownNow();关闭ExecutorService
+
+    boolean isShutdown();关闭ExecutorService
+
+    boolean isTerminated();
+
+    boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
+
+    <T> Future<T> submit(Callable<T> task);
+
+    <T> Future<T> submit(Runnable task, T result);
+
+    Future<?> submit(Runnable task);
+
+    <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException;
+
+    <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks,
+                                  long timeout, TimeUnit unit) throws InterruptedException;
+
+    <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException;
+
+    <T> T invokeAny(Collection<? extends Callable<T>> tasks,long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException;
+}
+
+note left of ExecutorService:承自 Executor 接口，它提供了更丰富的实现多线程的方法。
+
+abstract class AbstractExecutorService implements ExecutorService {
+
+    # <T> RunnableFuture<T> newTaskFor(Runnable runnable, T value);
+    # <T> RunnableFuture<T> newTaskFor(Callable<T> callable);
+    + Future<?> submit(Runnable task);
+    + <T> Future<T> submit(Runnable task, T result);
+    + <T> Future<T> submit(Callable<T> task);
+    - <T> T doInvokeAny(Collection<? extends Callable<T>> tasks,boolean timed, long nanos)throws InterruptedException, ExecutionException, TimeoutException;
+
+    + <T> T invokeAny(Collection<? extends Callable<T>> tasks)throws InterruptedException, ExecutionException;
+    + <T> T invokeAny(Collection<? extends Callable<T>> tasks,long timeout, TimeUnit unit)throws InterruptedException, ExecutionException, TimeoutException;
+
+    + <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks,
+                                         long timeout, TimeUnit unit) throws InterruptedException;
+
+}
+
+class ThreadPoolExecutor extends AbstractExecutorService {
+
+    - final AtomicInteger ctl:new AtomicInteger(ctlOf(RUNNING, 0));
+    - static final int COUNT_BITS:Integer.SIZE - 3;
+    - static final int CAPACITY:(1 << COUNT_BITS) - 1;
+
+    - static final int RUNNING:-1 << COUNT_BITS;
+    - static final int SHUTDOWN:0 << COUNT_BITS;
+    - static final int STOP:1 << COUNT_BITS;
+    - static final int TIDYING:2 << COUNT_BITS;
+    - static final int TERMINATED:3 << COUNT_BITS;
+
+    - final BlockingQueue<Runnable> workQueue;:用来暂时保存任务的工作队列
+
+    - final ReentrantLock mainLock : new ReentrantLock();
+
+    - final HashSet<Worker> workers : new HashSet<Worker>();
+
+    - final Condition termination : mainLock.newCondition();
+
+    - int largestPoolSize;
+
+    - long completedTaskCount;
+
+    - volatile ThreadFactory threadFactory;
+
+    - volatile RejectedExecutionHandler handler;
+
+    - volatile long keepAliveTime;:空闲线程在超过keepAliveTime时间后将会关闭
+
+    - volatile boolean allowCoreThreadTimeOut;
+
+    - volatile int corePoolSize;:核心线程池的大小
+
+    - volatile int maximumPoolSize;:最大线程池的大小
+
+    - static final RejectedExecutionHandler defaultHandler:new AbortPolicy();饱和策略。当ThreadPoolExecutor已经关闭或者ThreadPoolExecutor已经饱和时（是指达到了最大线程池的大小且工作队列已满），execute方法将要调用的Handler
+    - static final RuntimePermission shutdownPerm:new RuntimePermission("modifyThread");
+    --
+        - static int runStateOf(int c);
+            - static int workerCountOf(int c);
+            - static int ctlOf(int rs, int wc);
+
+            - static boolean runStateLessThan(int c, int s);
+
+            - static boolean runStateAtLeast(int c, int s);
+
+            - static boolean isRunning(int c);
+            - boolean compareAndIncrementWorkerCount(int expect);
+            - boolean compareAndDecrementWorkerCount(int expect);
+            - void decrementWorkerCount();
+            ..
+            
+     }
+     
+interface ScheduledExecutorService extends ExecutorService {
+     
+
+         + ScheduledFuture<?> schedule(Runnable command,
+                                            long delay, TimeUnit unit);
+     
+
+         + <V> ScheduledFuture<V> schedule(Callable<V> callable,
+                                                long delay, TimeUnit unit);
+
+         + ScheduledFuture<?> scheduleAtFixedRate(Runnable command,
+                                                       long initialDelay,
+
+         + ScheduledFuture<?> scheduleWithFixedDelay(Runnable command,
+                                                          long initialDelay,
+                                                          long delay,
+                                                          TimeUnit unit);
+     
+     }
+     
+     class ScheduledThreadPoolExecutor extends ThreadPoolExecutor implements ScheduledExecutorService {
+                     private final long sequenceNumber;:这个任务被添加到ScheduledThreadPoolExecutor中的序号
+
+                     private long time;:任务下一次执行的具体时间
+
+                     private final long period;:表示任务执行的间隔周期
+
+
+
+             }
+
+note right of ScheduledThreadPoolExecutor:创建一个支持定时及周期性的任务执行\n的线程池，多数情况下可用来替代Timer类(Timer对应的单个的后台线程)。ScheduledThreadPoolExecutor适用于需要在多个后台线程执行周期任务，\n同时为了满足资源管理需求需要限制后台线程数量的应用场景。
+@enduml

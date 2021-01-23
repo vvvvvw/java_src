@@ -1,0 +1,13 @@
+@startuml
+interface Comparable {
+    public int compareTo(T o);
+}
+interface Delayed extends Comparable {
+
+    long getDelay(TimeUnit unit);
+}
+
+class DelayQueue extends AbstractQueue implements BlockingQueue {
+}
+note left of DelayQueue:DelayQueue<E extends Delayed>,其中元素是Delayed的子类
+@enduml
