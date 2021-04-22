@@ -43,7 +43,7 @@ public class EventObject implements java.io.Serializable {
     /**
      * The object on which the Event initially occurred.
      */
-    protected transient Object  source;
+    protected transient Object  source; //传入的事件来源（事件发生的地方），例：spring事件 ContextRefreshedEvent，其事件源为当前ApplicationContext 对象
 
     /**
      * Constructs a prototypical Event.
@@ -51,6 +51,7 @@ public class EventObject implements java.io.Serializable {
      * @param    source    The object on which the Event initially occurred.
      * @exception  IllegalArgumentException  if source is null.
      */
+    //记录下来的source 事件源
     public EventObject(Object source) {
         if (source == null)
             throw new IllegalArgumentException("null source");
