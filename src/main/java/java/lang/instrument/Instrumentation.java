@@ -94,6 +94,10 @@ public interface Instrumentation {
      * retransformation ({@link #isRetransformClassesSupported} is false)
      * @since 1.6
      */
+    /*
+    注册ClassFileTransformer实例，transformer的调用顺序可以看 ClassFileTransformer的api
+    会调用ClassFileTransformer实例有三个场景：类加载的时候、通过redefineClasses函数指定了类重定义的时候、如果canRetransform参数为true且jvm支持Retransform能力的话，可以通过retransformClasses函数重新transform
+     */
     void
     addTransformer(ClassFileTransformer transformer, boolean canRetransform);
 
@@ -106,6 +110,7 @@ public interface Instrumentation {
      * @throws java.lang.NullPointerException if passed a <code>null</code> transformer
      * @see    #addTransformer(ClassFileTransformer,boolean)
      */
+    //相当于addTransformer(transformer, false)
     void
     addTransformer(ClassFileTransformer transformer);
 
@@ -122,6 +127,7 @@ public interface Instrumentation {
      *           transformer was not found
      * @throws java.lang.NullPointerException if passed a <code>null</code> transformer
      */
+    //移除ClassFileTransformer实例
     boolean
     removeTransformer(ClassFileTransformer transformer);
 
@@ -142,6 +148,9 @@ public interface Instrumentation {
      * @see #retransformClasses
      * @since 1.6
      */
+    //返回当前JVM配置是否支持重新transform的特性（重新transform对于jvm来说是一种可选能力）
+    //只有当Manifest.mf 文件中指定了 Can-Retransform-Classes为true 且 jvm本身支持该能力的时候，Retransformation功能才是支持的
+    //对于本方法的多次调用返回的是一个结果
     boolean
     isRetransformClassesSupported();
 
@@ -254,6 +263,18 @@ public interface Instrumentation {
      * @see java.lang.instrument.ClassFileTransformer
      * @since 1.6
      */
+    //设置需要 重新transform的已加载类
+        /*
+    此功能用于操作已经加载的类。
+    当类被加载或者redefineClasses时，类的初始字节码会通过ClassFileTransformer实例转换。本函数则会重新运行该过程，只不过相比之前有一些变化（对于调用addTransformer的时候，传入的canRetransform为true的 transformer，本次不会调用），执行过程如下：
+            1.获取类初始的字节码（java.lang.ClassLoader#defineClass 或者redefineClasses返回的字节码，储存在常量池中）
+            2.对于调用addTransformer的时候，传入的canRetransform为false的 transformer 且 该transformer的transform函数在之前初始化加载或者redefine的时候也被调用过的话，会把上一次执行该transformer.transform的时候输出的字节码作为本次的输出（这就相当于一模一样的重放了之前的转换过程）
+            3.对于调用addTransformer的时候，传入的canRetransform为true的 transformer，会重新执行该transformer.transform函数
+    transformation的顺序在ClassFileTransformer#transform的api文档中描述了。
+    类初始的字节码指的是java.lang.ClassLoader#defineClass 或者redefineClasses（在经过任何transform之前）返回的字节码，储存在常量池中。
+    如果本方法发生异常，则不会 retransform任何类
+     */
+
     void
     retransformClasses(Class<?>... classes) throws UnmodifiableClassException;
 
@@ -273,6 +294,8 @@ public interface Instrumentation {
      * false if not.
      * @see #redefineClasses
      */
+    //返回当前JVM配置是否支持重定义类（修改类的字节码）的特性（对于已经加载的类重新定义对于jvm来说是一种可选能力）
+    //只有当Manifest.mf 文件中指定了 Can-Redefine-Classes为true 且 jvm本身支持该能力的时候，重定义类功能才是支持的
     boolean
     isRedefineClassesSupported();
 
@@ -341,6 +364,16 @@ public interface Instrumentation {
      * @see #addTransformer
      * @see java.lang.instrument.ClassFileTransformer
      */
+    //设置需要 重新定义的已加载类，ClassDefinition类型的入参包括了对应的类型Class<?>对象和字节码文件对应的字节数组
+    /*
+    指定需要重新定义的类。
+    本方法无需引用 字节码 就可以替换类定义。如果要转换已有的字节码，则应使用retransformClasses。
+    如果重新定义的方法有活动着的堆栈帧，则这些活动帧将继续运行方法的原始字节码。重新定义的方法将用于新的调用。
+
+    除了在常规JVM语义下会发生的初始化之外，此方法不会引起任何初始化。换句话说，重新定义类不会重新运行初始化操作。静态变量的值将保持调用前的状态。
+    重新定义的类的实例不受影响。
+    如果本方法执行发生异常，则不会redefineClasses任何类。
+     */
     void
     redefineClasses(ClassDefinition... definitions)
         throws  ClassNotFoundException, UnmodifiableClassException;
@@ -373,6 +406,7 @@ public interface Instrumentation {
      * @see #isRedefineClassesSupported
      * @since 1.6
      */
+    //判断对应类是否通过retransformClasses或者redefineClasses修改过
     boolean
     isModifiableClass(Class<?> theClass);
 
@@ -382,6 +416,7 @@ public interface Instrumentation {
      * @return an array containing all the classes loaded by the JVM, zero-length if there are none
      */
     @SuppressWarnings("rawtypes")
+    //获取所有已经被当前jvm加载的类
     Class[]
     getAllLoadedClasses();
 
@@ -394,6 +429,7 @@ public interface Instrumentation {
      * @return an array containing all the classes for which loader is an initiating loader,
      *          zero-length if there are none
      */
+    //获取所有已经被loader加载的类，如果loader参数为null，则返回被 bootstrap类加载器加载的类
     @SuppressWarnings("rawtypes")
     Class[]
     getInitiatedClasses(ClassLoader loader);
@@ -409,6 +445,7 @@ public interface Instrumentation {
      * @return an implementation-specific approximation of the amount of storage consumed by the specified object
      * @throws java.lang.NullPointerException if the supplied Object is <code>null</code>.
      */
+    //获取某个对象的(字节)大小，注意嵌套对象或者对象中的属性引用需要另外单独计算。
     long
     getObjectSize(Object objectToSize);
 
@@ -461,6 +498,7 @@ public interface Instrumentation {
      *
      * @since 1.6
      */
+    //将某个jar加入到Bootstrap Classpath里优先其他jar被加载。
     void
     appendToBootstrapClassLoaderSearch(JarFile jarfile);
 
@@ -521,6 +559,7 @@ public interface Instrumentation {
      * @see     java.util.jar.JarFile
      * @since 1.6
      */
+    //将某个jar加入到Classpath里供AppClassload去加载。
     void
     appendToSystemClassLoaderSearch(JarFile jarfile);
 
@@ -542,6 +581,7 @@ public interface Instrumentation {
      * @see #setNativeMethodPrefix
      * @since 1.6
      */
+    //是否支持设置native方法的前缀
     boolean
     isNativeMethodPrefixSupported();
 
@@ -660,6 +700,7 @@ public interface Instrumentation {
      *
      * @since 1.6
      */
+    //设置某些native方法的前缀，主要在找native方法的时候做规则匹配
     void
     setNativeMethodPrefix(ClassFileTransformer transformer, String prefix);
 }
